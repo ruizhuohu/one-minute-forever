@@ -35,7 +35,7 @@ def view(r,t):
     host=t==r['host']
     if not host and t not in r['players']: raise ValueError('Unknown player.')
     s=dict(host=host,code=r['code'],phase=r['phase'],round=r['round'],count=len(r['players']),name='' if host else r['players'][t]['name'])
-    if r['round']==3 and r['phase'] in ('running','finished'): s['puzzle']=r['puzzle'][0]
+    if host and ((r['round']==2 and r['phase']=='between') or (r['round']==3 and r['phase'] in ('running','finished'))): s['puzzle']=r['puzzle'][0]
     if host and r['phase']=='lobby': s['names']=[p['name'] for p in r['players'].values()]
     if host and r['phase']=='finished':
         s['answer']=r['puzzle'][1]
@@ -71,6 +71,9 @@ class Handler(BaseHTTPRequestHandler):
                         if len(r['players'])>=24: raise ValueError('Room full.')
                         t=secrets.token_urlsafe(24);r['players'][t]=dict(name=n,scores=[]);result=dict(code=c,token=t)
                     elif a=='state': result=view(r,t)
+                    elif a=='change_question':
+                        if t!=r['host'] or r['phase']!='between' or r['round']!=2: raise ValueError('Only the host can change the question before round 3.')
+                        r['puzzle']=random.choice([p for p in puzzles if p!=r['puzzle']]);result=view(r,t)
                     elif a=='start':
                         if t!=r['host']: raise ValueError('Host only.')
                         if r['phase'] not in ('lobby','between') or len(r['players'])<2: raise ValueError('Two players required.')
